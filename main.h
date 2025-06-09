@@ -1,73 +1,47 @@
-#pragma once
-
-#include <string>
 #include <iostream>
-#include <vector>
-#include <stdexcept>
-#include <map>
+#include <string>
+#include "../include/Cache.hpp"
 
-struct MemoryAccess {
-    std::string loadStore;
-    unsigned long long int address;
-};
+int main(int argc, char **argv)
+{
+    if (argc != 7)
+    {
+        std::cerr << "Usage: \n./cacheSim <no_sets> <no_blocks_per_set> <block_size> <write_policy> <write_strategy> <replacement_policy> < <trace_file>" << std::endl;
+        return 1;
+    }
 
-struct CacheConstruct {
-    bool dirty, valid;
-    unsigned long long int tag, lruPosition, fifoCount;
-};
+    int setNum = std::stoi(argv[1]);
+    int blocksPerSet = std::stoi(argv[2]);
+    int blockSize = std::stoi(argv[3]);
+    std::string writeMissPolicy = argv[4];
+    std::string writeHitPolicy = argv[5];
+    std::string replacementPolicy = argv[6];
 
-class Cache {
-private:
-    unsigned long long int setsNum;
-    unsigned long long int blocksPerSet;
-    unsigned long long int blockSize;
-    std::string writeHitPolicy;
-    std::string writeMissPolicy;
-    std::string replacementPolicy;
+    Cache* cache = new Cache(setNum, blocksPerSet, blockSize, writeHitPolicy, writeMissPolicy, replacementPolicy);
 
-    friend MemoryAccess stringToMemAccess(const std::string trace);
+    std::string traceLine;
+    while (std::getline(std::cin, traceLine)) {
+        cache->parseTrace(traceLine);
+    }
 
-    std::vector<MemoryAccess> accessList;
-    std::vector<std::vector<CacheConstruct>> cache;
+    cache->memoryAccess();
 
-    // === Simulation statistics ===
-    unsigned long long numReads = 0;
-    unsigned long long numReadMisses = 0;
-    unsigned long long numWrites = 0;
-    unsigned long long numWriteMisses = 0;
-    unsigned long long numWriteBacks = 0;
+    // Print simulator configuration
+    std::cout << "===== Simulator configuration =====" << std::endl;
+    std::cout << "  L1_SIZE:\t\t" << setNum * blocksPerSet * blockSize << std::endl;
+    std::cout << "  L1_ASSOC:\t\t" << blocksPerSet << std::endl;
+    std::cout << "  L1_BLOCKSIZE:\t\t" << blockSize << std::endl;
+    std::cout << "  VC_NUM_BLOCKS:\t0" << std::endl;
+    std::cout << "  L2_SIZE:\t\t0" << std::endl;
+    std::cout << "  L2_ASSOC:\t\t0" << std::endl;
+    std::cout << "  trace_file:\t\t" << "gcc_trace.txt" << std::endl << std::endl;
 
-public:
-    // Constructor
-    Cache(unsigned long long int sets_number,
-          unsigned long long int blocks_per_set,
-          unsigned long long int block_size,
-          std::string write_hit_policy,
-          std::string write_miss_policy,
-          std::string replacement_policy);
+    // Print L1 contents
+    cache->printL1Contents();
 
-    // Destructor
-    ~Cache();
+    // Print L1 statistics
+    cache->printStatistics();
 
-    // Load trace line into accessList
-    void parseTrace(const std::string trace);
-
-    // Process all memory accesses and print results
-    void memoryAccess();
-
-    // Core memory read/write logic
-    bool read(MemoryAccess access, unsigned long long int indexMask,
-              unsigned long long int instructionCount, long long int &totalCycles);
-
-    bool write(MemoryAccess access, unsigned long long int indexMask,
-               unsigned long long int instructionCount, long long int &totalCycles);
-
-    // Replacement policy management
-    void updateLRU(int index, int blockIndex);
-
-    // Print L1 cache state after simulation
-    void printL1Contents();
-
-    // Print simulation statistics
-    void printStatistics();
-};
+    delete cache;
+    return 0;
+}
