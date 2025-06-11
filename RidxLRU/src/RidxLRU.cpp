@@ -1,4 +1,4 @@
-#include "../include/Cache.hpp"
+#include "RidxLRU.hpp"
 #include "../include/RidxLRU.hpp"
 #include <iomanip>
 #include <sstream>
