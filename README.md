@@ -1,76 +1,99 @@
 # 🧠 NeuroCache Simulator
 
-A compiler-integrated **L1 Cache Simulator** for evaluating cache performance under various memory access patterns, aimed at reducing data movement between compute cores and external memory — a primary source of energy loss in modern systems.
-
-> 📄 Based on the concepts from the paper:  
-> **“SPADA: Accelerating Sparse Matrix Multiplication with Adaptive Dataflow”**
+A compiler-integrated **L1 Cache Simulator** for evaluating cache performance under various memory access patterns. This simulator emphasizes **replacement policies** like **RidxLRU** and **SRRIP**, and supports trace generation in a manner similar to the **SPADA** paper, helping to reduce energy loss due to memory access inefficiencies.
 
 ---
 
 ## 📌 Objective
 
-This project investigates various cache configurations and memory allocation/replacement policies to evaluate **data locality, cache utilization, and energy efficiency**. In particular, we compare baseline cache policies with **SPADA-style adaptive strategies** that reduce unnecessary memory movement — a key contributor to overall energy consumption.
+This project aims to simulate and evaluate the effects of different cache replacement policies on memory performance and energy efficiency, focusing on sparse dataflow and adaptive strategies (like SPADA). The simulator allows researchers to study:
+
+- Data locality
+- Cache utilization
+- Total memory traffic
+- Energy-related impact of replacement decisions
 
 ---
 
-## 📁 Repository Structure
+## 🧩 Supported Replacement Policies
+
+- ✅ **LRU (Least Recently Used)**
+- ✅ **FIFO (First-In-First-Out)**
+- ✅ **RidxLRU** (Register Index based LRU - NEW)
+- ✅ **SRRIP** (Static Re-Reference Interval Prediction - NEW)
+
+---
+
+## 📁 Project Structure
 
 ```
-
-NeuroCache\_Simulator/
+NeuroCache_Simulator/
 ├── CacheSimulator/
-│   ├── cacheSim.cpp         # Main simulator code
-│   ├── headers/             # Header files (modularized)
-│   ├── utils/               # Utility and helper functions
-│   ├── cacheSim             # Compiled binary (after make)
-│   └── ...
+│   ├── cacheSim.cpp            # Main driver
+│   ├── main.h                  # Simulator header (modular definitions)
+│   ├── Cache.cpp               # L1 Cache read/write logic
+│   ├── RidxLRU.cpp             # New: RidxLRU replacement logic
+│   ├── SRRIP.cpp               # New: SRRIP logic implementation
+│   ├── TraceParser.cpp         # Parses traces, SPADA-style adaptive window
+│   ├── headers/
+│   │   ├── Cache.hpp           # Cache class definitions
+│   │   ├── RidxLRU.hpp
+│   │   ├── SRRIP.hpp
+│   ├── utils/
+│   │   ├── TraceGen.cpp        # Generates different trace scenarios
+│   │   └── Helpers.hpp         # Misc helper functions
+│   └── cacheSim                # Compiled binary (after build)
 ├── traces/
-│   ├── gcc.trace            # Example trace file
-│   └── other\_traces/
+│   ├── gcc.trace
+│   ├── spada_window.trace      # Window-based dataflow trace
+│   ├── custom_dataflow/        # Varying sparsity traces
+├── README.md
 ├── Makefile
-└── README.md
-
-````
+└── LICENSE
+```
 
 ---
 
 ## ✅ Features
 
-- ✅ Parameterizable **L1 Cache** (Size, Associativity, Block Size)
-- ✅ Accurate simulation of **read/write** memory accesses
-- ✅ Multiple memory policies:
-  - Write: `write-back`, `write-through`
-  - Allocation: `write-allocate`, `no-write-allocate`
-  - Replacement: `lru`, `fifo`, `spada` (coming soon)
-- ✅ Text-based reporting for:
-  - Read/write counts
-  - Miss rates
-  - Total memory traffic
+- ✅ Fully parameterizable L1 Cache: size, associativity, block size
+- ✅ Memory access modes: `read`, `write`, with `write-back` / `write-through`
+- ✅ Configurable on:
+  - Write Miss Policy: `write-allocate`, `no-write-allocate`
+  - Replacement Policy: `lru`, `fifo`, `ridxlru`, `srrip`
+- ✅ Trace generation for:
+  - Dense memory patterns
+  - Sparse/SPADA-style window flows
+- ✅ Outputs:
+  - Hit/miss statistics
+  - Total traffic
+  - Writebacks
+  - (Upcoming) Energy metrics
 
 ---
 
 ## ⚙️ Build Instructions
 
-### 1️⃣ Clone and Enter the Project
+### 1️⃣ Clone the Repository
 
 ```bash
 git clone https://github.com/Namaniit297/NeuroCache_Simulator.git
 cd NeuroCache_Simulator/CacheSimulator
-````
+```
 
-### 2️⃣ Compile with Make
+### 2️⃣ Compile with `make`
 
 ```bash
 make
 ```
 
-> ✅ Requires C++17-compatible compiler (e.g., `g++-9` or later)
+> ✅ Requires: `g++` with C++17 support (e.g., `g++-9` or later)
 
 ---
 
 ## 🚀 Running the Simulator
 
-### ✅ Command Syntax
+### ✅ Syntax
 
 ```bash
 ./cacheSim <cache_size_kb> <associativity> <block_size> <write_miss_policy> <write_hit_policy> <replacement_policy> < input_trace
@@ -79,24 +102,24 @@ make
 ### ✅ Example
 
 ```bash
-./cacheSim 32 2 16 write-allocate write-back lru < ../traces/gcc.trace
+./cacheSim 32 2 16 write-allocate write-back ridxlru < ../traces/gcc.trace
 ```
 
 ---
 
-## 📄 Input Trace Format
+## 🧪 Trace Format
 
-Trace files must follow this format:
+Each trace file should contain memory accesses in this format:
 
 ```
 r 0x0040a1f4
 w 0x0040a1f8
-...
+r 0x00a0f234
 ```
 
-* `r`: read (load)
-* `w`: write (store)
-* Hexadecimal memory addresses
+- `r`: load (read)
+- `w`: store (write)
+- Address: Hexadecimal
 
 ---
 
@@ -109,41 +132,60 @@ L1_ASSOC:                 2-way
 BLOCKSIZE:                16 B
 WRITE MISS POLICY:        write-allocate
 WRITE HIT POLICY:         write-back
-REPLACEMENT POLICY:       LRU
+REPLACEMENT POLICY:       RidxLRU
 
 ===== Simulation Results =====
-a. Number of reads:             63640
-b. Read misses:                 8322
-c. Number of writes:            36360
-d. Write misses:                3920
-e. L1 miss rate:                12.3%
-f. Total memory traffic:        10242
+a. Number of reads:             15240
+b. Read misses:                 3201
+c. Number of writes:            11321
+d. Write misses:                2877
+e. L1 miss rate:                23.5%
+f. Total memory traffic:        7365
 ```
+
+---
+
+## 📄 Experimental Traces
+
+SPADA and dataflow-based traces are generated under `traces/custom_dataflow/`. These mimic:
+
+- Row-wise block multiplication (like SPADA)
+- Diagonal and random access windows
+- Ridx and reuse-insensitive blocks
 
 ---
 
 ## 🔍 Research Focus
 
-We explore how **data movement patterns and cache policies** impact energy efficiency. Our simulator serves as a testbed to evaluate techniques like:
+We evaluate how custom-designed replacement policies like **RidxLRU** and **SRRIP** perform on varying data reuse windows, specifically in:
 
-* 🔄 SPADA: Adaptive dataflow-based replacement
-* 🧠 Neuro-inspired and ML-driven replacement policies
-* ⚡ Reducing compute–memory data traffic to save power
-
-> 📉 **Goal**: Minimize energy lost due to external memory accesses by optimizing cache locality and trace-aware scheduling.
+- Sparse matrix-vector multiplies (SpMV)
+- Sliding windows in CNN-like flows
+- Compiler-generated access traces
 
 ---
 
-## 🧪 Future Extensions
+## 📈 Planned Extensions
 
-* [ ] Implement SPADA (adaptive)
-* [ ] Add energy profiling hooks
-* [ ] LLVM compiler pass integration
-* [ ] Machine learning-based cache replacement
-* [ ] Support for compressed and encoded traces
+- [ ] Energy profiling (RAPL / estimation)
+- [ ] Adaptive replacement (SPADA window aware)
+- [ ] LLVM pass integration for trace generation
+- [ ] Trace visualization tools
+- [ ] ML-guided cache decisions
+
+---
+
+## 🧠 Inspiration
+
+Based on:
+> **SPADA: Accelerating Sparse Matrix Multiplication with Adaptive Dataflow**  
+> Danial Moghaddam, Xin Chen, et al.
 
 ---
 
 ## 📜 License
 
-Licensed under the MIT License. See [LICENSE](./LICENSE) for details. 
+Licensed under the MIT License.  
+See [LICENSE](./LICENSE) for details.
+
+---
